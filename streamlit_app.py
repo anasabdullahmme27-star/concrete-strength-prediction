@@ -23,6 +23,15 @@ import numpy  # noqa: E402, F401
 import pandas as pd  # noqa: E402
 import plotly.graph_objects as go  # noqa: E402
 
+# scikit-learn takes about 4.5 seconds to import, and the model files need it.
+# Imported here it costs that once, while the server starts; imported lazily on
+# the first prediction it would cost the user that wait mid-click. The joblib
+# files themselves are only 0.3 s for all six.
+import sklearn.ensemble  # noqa: E402, F401
+import sklearn.preprocessing  # noqa: E402, F401
+import lightgbm  # noqa: E402, F401
+import xgboost  # noqa: E402, F401
+
 from src import config, predictor, stats  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -127,6 +136,7 @@ st.markdown(
         font-size: 1.2rem !important; font-weight: 700; color: {VIOLET}; margin: 0 0 0.15rem;
     }}
     .result-note {{ font-size: 0.8rem !important; color: {INK_MUTED}; margin: 0; }}
+    .result-value.is-empty, .result-grade.is-empty {{ color: {INK_MUTED}; }}
 
     /* stat cards --------------------------------------------------------- */
     .stat {{
@@ -198,7 +208,7 @@ st.markdown(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-def gauge(value: float) -> go.Figure:
+def gauge(value: float | None) -> go.Figure:
     """The dial. Bands are EN 206 classes; the needle is this mix.
 
     Colour is deliberately redundant here — the value is printed beside the
@@ -215,7 +225,7 @@ def gauge(value: float) -> go.Figure:
     figure = go.Figure(
         go.Indicator(
             mode="gauge",
-            value=max(0.0, min(value, 100.0)),
+            value=0.0 if value is None else max(0.0, min(value, 100.0)),
             gauge=dict(
                 axis=dict(
                     range=[0, 100],
@@ -231,7 +241,9 @@ def gauge(value: float) -> go.Figure:
                 # Plotly's angular gauge has no centre needle, so the marker is
                 # a full-depth radial line across the band instead.
                 threshold=dict(
-                    line=dict(color="#ffffff", width=6), thickness=1.0, value=value
+                    line=dict(color="#ffffff", width=0 if value is None else 6),
+                    thickness=1.0,
+                    value=0.0 if value is None else value,
                 ),
             ),
         )
@@ -302,6 +314,24 @@ def clear_inputs() -> None:
         st.session_state[f"in_{feature.key}"] = 0.0 if feature.key != "age" else 1.0
     st.session_state.pop("result", None)
 
+
+@st.cache_resource(show_spinner="Loading models…")
+def warm_up() -> int:
+    """Load every model and scaler up front.
+
+    `st.cache_resource` is process-wide, so this runs once when the server
+    starts and never again - not per browser session and not per click. After
+    it, a prediction is a single call on an already-loaded model.
+    """
+    loaded = 0
+    for family in config.FAMILIES:
+        for spec in predictor.available_models(family):
+            predictor.load(spec)
+            loaded += 1
+    return loaded
+
+
+warm_up()
 
 if "initialised" not in st.session_state:
     apply_preset("High Performance")
@@ -379,24 +409,23 @@ with tab_predict:
     if run:
         prediction = predictor.predict(spec, values)
         stats.record(spec.key, spec.name, family, prediction)
+        grade, grade_note = config.strength_class(prediction)
         st.session_state["result"] = {
             "value": prediction,
-            "model": spec.name,
-            "committed": True,
+            "model_key": spec.key,
+            "values": dict(values),
+            "grade": grade,
+            "grade_note": grade_note,
         }
 
+    # Nothing is predicted until the button is pressed. A stored result is kept
+    # on screen while the user edits, and the status bar says when it no longer
+    # matches what is in the boxes.
     result = st.session_state.get("result")
-    if result is None or result.get("model") != spec.name:
-        # Show a live figure straight away rather than an empty panel; only an
-        # explicit button press is counted in the statistics.
-        result = {
-            "value": predictor.predict(spec, values),
-            "model": spec.name,
-            "committed": False,
-        }
+    stale = result is not None and (
+        result["model_key"] != spec.key or result["values"] != values
+    )
 
-    prediction = result["value"]
-    grade, grade_note = config.strength_class(prediction)
     ratios = predictor.indicators(values)
     flagged = predictor.out_of_range(values, spec.columns)
 
@@ -406,19 +435,30 @@ with tab_predict:
             gauge_column, value_column = st.columns([0.82, 1.18], vertical_alignment="center")
             with gauge_column:
                 st.plotly_chart(
-                    gauge(prediction),
+                    gauge(result["value"] if result else None),
                     width="stretch",
                     config={"displayModeBar": False, "staticPlot": True},
                 )
             with value_column:
-                st.markdown(
-                    f'<p class="result-label">Predicted Strength</p>'
-                    f'<p class="result-value">{prediction:.2f} MPa</p>'
-                    f'<p class="result-grade-label">Concrete Grade</p>'
-                    f'<p class="result-grade">{grade}</p>'
-                    f'<p class="result-note">{grade_note}</p>',
-                    unsafe_allow_html=True,
-                )
+                if result:
+                    st.markdown(
+                        f'<p class="result-label">Predicted Strength</p>'
+                        f'<p class="result-value">{result["value"]:.2f} MPa</p>'
+                        f'<p class="result-grade-label">Concrete Grade</p>'
+                        f'<p class="result-grade">{result["grade"]}</p>'
+                        f'<p class="result-note">{result["grade_note"]}</p>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        '<p class="result-label">Predicted Strength</p>'
+                        '<p class="result-value is-empty">— MPa</p>'
+                        '<p class="result-grade-label">Concrete Grade</p>'
+                        '<p class="result-grade is-empty">—</p>'
+                        '<p class="result-note">Enter the mix, then press '
+                        'Predict Strength.</p>',
+                        unsafe_allow_html=True,
+                    )
 
         cards = [
             ("💧", "Water / Cement", f"{ratios['wc_ratio']:.4f}",
@@ -434,7 +474,9 @@ with tab_predict:
              f"Coarse {values[config.COARSE_AGG]:.0f} + Fine {values[config.FINE_AGG]:.0f}"),
             ("🧪", "Paste Volume", f"{ratios['paste_volume']:.4f}",
              "(C + S + FA + W) ÷ 2400"),
-            ("🏅", "Strength Class", grade.split(" —")[0], grade_note),
+            ("🏅", "Strength Class",
+             result["grade"].split(" —")[0] if result else "—",
+             result["grade_note"] if result else "No prediction yet"),
         ]
         for row_start in (0, 3):
             card_columns = st.columns(3, gap="small")
@@ -454,18 +496,26 @@ with tab_predict:
             f' · W/C = {ratios["wc_ratio"]:.3f} · Binder = {ratios["total_binder"]:.0f} kg/m³'
         )
         status_class = "status"
-    elif result["committed"]:
+    elif result is None:
+        status = (
+            f'Ready · W/C = {ratios["wc_ratio"]:.3f}'
+            f' · Binder = {ratios["total_binder"]:.0f} kg/m³'
+            ' · press PREDICT STRENGTH to run the model'
+        )
+        status_class = "status is-idle"
+    elif stale:
+        status = (
+            f'Mix changed since the last prediction · W/C = {ratios["wc_ratio"]:.3f}'
+            f' · Binder = {ratios["total_binder"]:.0f} kg/m³'
+            ' · press PREDICT STRENGTH to update'
+        )
+        status_class = "status is-idle"
+    else:
         status = (
             f'✓ Prediction complete · W/C = {ratios["wc_ratio"]:.3f}'
             f' · Binder = {ratios["total_binder"]:.0f} kg/m³'
         )
         status_class = "status"
-    else:
-        status = (
-            f'Live preview · press PREDICT STRENGTH to record this run'
-            f' · W/C = {ratios["wc_ratio"]:.3f}'
-        )
-        status_class = "status is-idle"
     st.markdown(f'<div class="{status_class}">{status}</div>', unsafe_allow_html=True)
 
 

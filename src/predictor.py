@@ -34,6 +34,12 @@ def _load(path: str):
     return joblib.load(config.APP_ROOT / path)
 
 
+def load(spec: config.ModelSpec) -> None:
+    """Pull one model and its scaler into the cache."""
+    _load(spec.scaler_path)
+    _load(spec.model_path)
+
+
 def predict(spec: config.ModelSpec, values: dict[str, float]) -> float:
     """Predicted compressive strength in MPa for one raw, unscaled mix."""
     columns = spec.columns

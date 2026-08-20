@@ -16,6 +16,15 @@ classes, the predicted value and grade, and six derived mix indicators
 strength class). A status bar reports the water/cement ratio and warns when an
 input falls outside the range the models were trained on.
 
+Nothing is predicted until **Predict Strength** is pressed. Editing a value or
+switching model never runs the model; the last result stays on screen and the
+status bar says when it no longer matches the boxes.
+
+Every model and scaler is loaded once when the server starts, behind a
+"Loading models" spinner, so a press costs only the prediction itself. The wait
+is `scikit-learn`'s import (about 4.5 s), not the model files (0.3 s for all
+six).
+
 **Analytics** — how the app is actually being used: total predictions, models
 used, mean predicted strength, and a per-model comparison of run count and
 mean prediction. Counters are written to `data/stats.json` and survive a

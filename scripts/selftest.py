@@ -40,6 +40,10 @@ def test_render() -> None:
         "predict button present",
     )
     check(len(app.tabs) == 2, f"{len(app.tabs)} tabs")
+    check(
+        "result" not in app.session_state,
+        "nothing is predicted before the button is pressed",
+    )
 
 
 def test_family_switch() -> None:
@@ -48,6 +52,37 @@ def test_family_switch() -> None:
     app.selectbox(key="family").set_value("no_temp").run()
     check(not app.exception, "switches to the 8-input family")
     check(len(app.number_input) == 8, f"{len(app.number_input)} ingredient inputs (no temperature)")
+    check(
+        "result" not in app.session_state,
+        "switching model does not trigger a prediction",
+    )
+
+
+def test_editing_does_not_predict() -> None:
+    print("\n[editing never predicts]")
+    stats.reset()
+    app = new_app()
+
+    cement = next(w for w in app.number_input if "Cement" in w.label)
+    cement.set_value(480.0).run()
+    check(not app.exception, "input accepted")
+    check("result" not in app.session_state, "changing a value does not predict")
+
+    next(w for w in app.number_input if "Water" in w.label).set_value(155.0).run()
+    check(stats.load()["total"] == 0, "no run recorded while editing")
+
+    next(b for b in app.button if "PREDICT STRENGTH" in b.label).click().run()
+    check("result" in app.session_state, "the button does predict")
+    check(stats.load()["total"] == 1, "exactly one run recorded")
+
+    stored = app.session_state["result"]["value"]
+    cement.set_value(300.0).run()
+    check(
+        app.session_state["result"]["value"] == stored,
+        "the shown result does not change until the button is pressed again",
+    )
+    check(stats.load()["total"] == 1, "still exactly one run recorded")
+    stats.reset()
 
 
 def test_every_model() -> None:
@@ -104,6 +139,7 @@ def test_out_of_range_flag() -> None:
 def main() -> int:
     test_render()
     test_family_switch()
+    test_editing_does_not_predict()
     test_every_model()
     test_prediction_is_recorded()
     test_out_of_range_flag()
