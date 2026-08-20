@@ -1,0 +1,16 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Runtime state — the app writes this itself
+data/stats.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+# Pinned for reproducibility. scikit-learn MUST stay at 1.6.1 — the .joblib
+# model files in models/ were pickled with it, and a different minor version
+# can fail to unpickle or silently change estimator behaviour.
+streamlit==1.61.1
+scikit-learn==1.6.1
+numpy==2.2.6
+pandas==2.3.3
+scipy==1.18.0
+joblib==1.5.3
+plotly==6.9.0
+lightgbm==4.7.0
+xgboost==3.4.1

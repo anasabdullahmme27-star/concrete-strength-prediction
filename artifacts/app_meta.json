@@ -1,0 +1,141 @@
+{
+  "models": {
+    "gb_with_temp": {
+      "name": "Gradient Boosting \u2014 Champion",
+      "family": "with_temp",
+      "model_path": "models/final_deployed_model.joblib",
+      "scaler_path": "scalers/standard_scaler.joblib",
+      "requires_package": null,
+      "is_champion": true,
+      "r2": 0.915864,
+      "rmse": 4.414108,
+      "mae": 3.108479
+    },
+    "lgbm_with_temp": {
+      "name": "LightGBM",
+      "family": "with_temp",
+      "model_path": "models/lightgbm.joblib",
+      "scaler_path": "scalers/standard_scaler.joblib",
+      "requires_package": "lightgbm",
+      "is_champion": false,
+      "r2": 0.913126,
+      "rmse": 4.485367,
+      "mae": 3.135947
+    },
+    "xgb_with_temp": {
+      "name": "XGBoost",
+      "family": "with_temp",
+      "model_path": "models/xgboost.joblib",
+      "scaler_path": "scalers/standard_scaler.joblib",
+      "requires_package": "xgboost",
+      "is_champion": false,
+      "r2": 0.910702,
+      "rmse": 4.547511,
+      "mae": 3.118034
+    },
+    "gb_no_temp": {
+      "name": "Gradient Boosting",
+      "family": "no_temp",
+      "model_path": "models/gradient_boosting_no_temp.joblib",
+      "scaler_path": "scalers/standard_scaler_no_temp.joblib",
+      "requires_package": null,
+      "is_champion": false,
+      "r2": 0.932614,
+      "rmse": 4.167014,
+      "mae": 2.882596
+    },
+    "lgbm_no_temp": {
+      "name": "LightGBM",
+      "family": "no_temp",
+      "model_path": "models/lightgbm_no_temp.joblib",
+      "scaler_path": "scalers/standard_scaler_no_temp.joblib",
+      "requires_package": "lightgbm",
+      "is_champion": false,
+      "r2": 0.933598,
+      "rmse": 4.136481,
+      "mae": 2.916749
+    },
+    "xgb_no_temp": {
+      "name": "XGBoost \u2014 Best without temperature",
+      "family": "no_temp",
+      "model_path": "models/xgboost_no_temp.joblib",
+      "scaler_path": "scalers/standard_scaler_no_temp.joblib",
+      "requires_package": "xgboost",
+      "is_champion": true,
+      "r2": 0.941213,
+      "rmse": 3.892086,
+      "mae": 2.614654
+    }
+  },
+  "features": {
+    "cement": {
+      "column": "Cement (component 1)(kg in a m^3 mixture)",
+      "min": 102.0,
+      "max": 540.0,
+      "median": 272.9,
+      "mean": 281.166
+    },
+    "slag": {
+      "column": "Blast Furnace Slag (component 2)(kg in a m^3 mixture)",
+      "min": 0.0,
+      "max": 359.4,
+      "median": 22.0,
+      "mean": 73.895
+    },
+    "fly_ash": {
+      "column": "Fly Ash (component 3)(kg in a m^3 mixture)",
+      "min": 0.0,
+      "max": 200.1,
+      "median": 0.0,
+      "mean": 54.187
+    },
+    "water": {
+      "column": "Water  (component 4)(kg in a m^3 mixture)",
+      "min": 121.75,
+      "max": 247.0,
+      "median": 185.0,
+      "mean": 181.566
+    },
+    "superplasticizer": {
+      "column": "Superplasticizer (component 5)(kg in a m^3 mixture)",
+      "min": 0.0,
+      "max": 32.2,
+      "median": 6.35,
+      "mean": 6.203
+    },
+    "coarse_agg": {
+      "column": "Coarse Aggregate  (component 6)(kg in a m^3 mixture)",
+      "min": 801.0,
+      "max": 1145.0,
+      "median": 968.0,
+      "mean": 972.919
+    },
+    "fine_agg": {
+      "column": "Fine Aggregate (component 7)(kg in a m^3 mixture)",
+      "min": 594.0,
+      "max": 992.6,
+      "median": 779.51,
+      "mean": 773.579
+    },
+    "age": {
+      "column": "Age (day)",
+      "min": 1.0,
+      "max": 365.0,
+      "median": 28.0,
+      "mean": 45.662
+    },
+    "temperature": {
+      "column": "Curing Temperature (Celsius)",
+      "min": 20.1,
+      "max": 45.0,
+      "median": 32.6,
+      "mean": 32.355
+    }
+  },
+  "dataset": {
+    "n_samples": 1030,
+    "target_min": 2.052,
+    "target_max": 82.599,
+    "target_mean": 33.781
+  }
+}
